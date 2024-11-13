@@ -1,7 +1,16 @@
+const eps = 1e-3;
+const NEAR_CLIPPING_PLANE = 1;
+const FOV = Math.PI * 0.5;
 class Vector2 {
   constructor(x, y) {
     this.x = x;
     this.y = y;
+  }
+  static fromAngle(angle) {
+    return new Vector2(Math.cos(angle), Math.sin(angle));
+  }
+  rot90() {
+    return new Vector2(-this.y, this.x);
   }
   array() {
     return [this.x, this.y];
@@ -60,25 +69,25 @@ function canvasSize(ctx) {
   return new Vector2(ctx.canvas.width, ctx.canvas.height);
 }
 
-function snap(x, dx, eps) {
+function snap(x, dx) {
   if (dx > 0) return Math.ceil(x + Math.sign(dx) * eps);
   if (dx < 0) return Math.floor(x + Math.sign(dx) * eps);
   return x;
 }
 
-function rayStep(p1, p2, eps) {
+function rayStep(p1, p2) {
   const d = p2.sub(p1);
   let p3;
   if (d.x !== 0 && d.y !== 0) {
     k = d.y / d.x;
     c = p1.y - k * p1.x;
     {
-      const x3 = snap(p2.x, d.x, eps);
+      const x3 = snap(p2.x, d.x);
       const y3 = k * x3 + c;
       p3 = new Vector2(x3, y3);
     }
     if (k !== 0) {
-      const y3 = snap(p2.y, d.y, eps);
+      const y3 = snap(p2.y, d.y);
       const x3 = (y3 - c) / k;
       let p3t = new Vector2(x3, y3);
       if (p2.distanceTo(p3) < p2.distanceTo(p3t)) {
@@ -88,12 +97,12 @@ function rayStep(p1, p2, eps) {
     }
   } else {
     if (d.x === 0) {
-      const y3 = snap(p2.y, d.y, eps);
+      const y3 = snap(p2.y, d.y);
       const x3 = p2.x;
       p3 = new Vector2(x3, y3);
       return p3;
     }
-    const x3 = snap(p2.x, d.x, eps);
+    const x3 = snap(p2.x, d.x);
     const y3 = p2.y;
     p3 = new Vector2(x3, y3);
     return p3;
@@ -105,7 +114,6 @@ function gridSize(grid) {
 
 function minimap(ctx, player, position, size, grid) {
   ctx.save();
-  const eps = 1e-3;
   const mapSize = gridSize(grid);
   ctx.fillStyle = "#181818";
   ctx.fillRect(0, 0, ctx.canvas.width, ctx.canvas.height);
@@ -132,10 +140,24 @@ function minimap(ctx, player, position, size, grid) {
   }
   ctx.fillStyle = "magenta";
   fillCircle(ctx, player.position, 0.07);
+
+  const p = player.position.add(
+    Vector2.fromAngle(player.direction).scale(NEAR_CLIPPING_PLANE)
+  );
+  const l = Math.tan(FOV * 0.5) * NEAR_CLIPPING_PLANE;
+  const p1 = p.sub(player.position).rot90().normalize().scale(l).add(p);
+  const p2 = p.sub(player.position).rot90().normalize().scale(-l).add(p);
+  ctx.strokeStyle = "magenta";
+  drawLine(ctx, player.position.x, player.position.y, p.x, p.y);
+  drawLine(ctx, p.x, p.y, p1.x, p1.y);
+  drawLine(ctx, p.x, p.y, p2.x, p2.y);
+  drawLine(ctx, player.position.x, player.position.y, p1.x, p1.y);
+  drawLine(ctx, player.position.x, player.position.y, p2.x, p2.y);
+
   // for (;;) {
   //   ctx.fillStyle = "magenta";
   //   ctx.strokeStyle = "magenta";
-  //   // const c = hittingCell(p1, p2, eps);
+  //   // const c = hittingCell(p1, p2 );
   //   // if (
   //   //   c.x <= 0 ||
   //   //   c.x >= mapSize.x - 1 ||
@@ -145,14 +167,14 @@ function minimap(ctx, player, position, size, grid) {
   //   // ) {
   //   //   break;
   //   // }
-  //   // const p3 = rayStep(p1, p2, eps);
+  //   // const p3 = rayStep(p1, p2);
   //   // fillCircle(ctx, p3, 0.07);
   //   // drawLine(ctx, p2.x, p2.y, p3.x, p3.y);
   // }
   ctx.restore();
 }
 
-function hittingCell(p1, p2, eps) {
+function hittingCell(p1, p2) {
   const d = p2.sub(p1);
   let x = Math.floor(p2.x + Math.sign(d.x) * eps);
   let y = Math.floor(p2.y + Math.sign(d.y) * eps);
@@ -186,7 +208,7 @@ function hittingCell(p1, p2, eps) {
     throw new Error("ctx element not found");
   }
 
-  let player = new Player(new Vector2(4.5, 4.5), 1);
+  let player = new Player(new Vector2(4.5, 4.5), Math.PI * 1.25);
 
   const cellSize = ctx.canvas.width / grid[0].length;
   const minimapSize = gridSize(grid).scale(cellSize);
