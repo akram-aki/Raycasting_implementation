@@ -1,6 +1,7 @@
 const eps = 1e-6;
+const PLAYER_SPEED = 3.1;
 const SCREAN_WIDTH = 800;
-const NEAR_CLIPPING_PLANE = 1;
+const NEAR_CLIPPING_PLANE = 0.25;
 const FOV = Math.PI * 0.5;
 class Vector2 {
   constructor(x, y) {
@@ -432,30 +433,68 @@ function renderGame(ctx, player, grid) {
   if (ctx === null) {
     throw new Error("ctx element not found");
   }
-
+  let movingForward = false;
+  let movingBackward = false;
+  let turnLeft = false;
+  let turnRight = false;
   window.addEventListener("keydown", (e) => {
     if (!e.repeat) {
       if (e.key === "ArrowUp") {
-        player.position = player.position.add(
-          Vector2.fromAngle(player.direction).scale(0.5)
-        );
-        renderGame(ctx, player, grid);
+        movingForward = true;
       }
       if (e.key === "ArrowDown") {
-        player.position = player.position.add(
-          Vector2.fromAngle(player.direction).scale(-0.5)
-        );
-        renderGame(ctx, player, grid);
+        movingBackward = true;
       }
       if (e.key === "ArrowLeft") {
-        player.direction -= Math.PI / 16;
-        renderGame(ctx, player, grid);
+        turnLeft = true;
       }
       if (e.key === "ArrowRight") {
-        player.direction += Math.PI / 16;
-        renderGame(ctx, player, grid);
+        turnRight = true;
       }
     }
   });
-  renderGame(ctx, player, grid);
+  window.addEventListener("keyup", (e) => {
+    if (!e.repeat) {
+      if (e.key === "ArrowUp") {
+        movingForward = false;
+      }
+      if (e.key === "ArrowDown") {
+        movingBackward = false;
+      }
+      if (e.key === "ArrowLeft") {
+        turnLeft = false;
+      }
+      if (e.key === "ArrowRight") {
+        turnRight = false;
+      }
+    }
+  });
+
+  let prevTimestamp = 0;
+  const frame = (timestamp) => {
+    const deltaTime = (timestamp - prevTimestamp) / 1000;
+    prevTimestamp = timestamp;
+
+    const playerVelocity = Vector2.fromAngle(player.direction).scale(
+      PLAYER_SPEED * deltaTime
+    );
+    if (movingForward) {
+      player.position = player.position.add(playerVelocity);
+    }
+    if (movingBackward) {
+      player.position = player.position.sub(playerVelocity);
+    }
+    if (turnLeft) {
+      player.direction -= Math.PI * 0.02;
+    }
+    if (turnRight) {
+      player.direction += Math.PI * 0.02;
+    }
+    renderGame(ctx, player, grid);
+    window.requestAnimationFrame(frame);
+  };
+  window.requestAnimationFrame((timestamp) => {
+    prevTimestamp = timestamp;
+    window.requestAnimationFrame(frame);
+  });
 })();
