@@ -195,8 +195,11 @@ function drawMap(ctx, mapSize, grid) {
         const color = grid[y][x];
         ctx.fillStyle = color.toStyle();
         ctx.fillRect(x, y, 1, 1);
-      } else if (cell instanceof ImageData) {
-        ctx.putImageData(cell, x, y);
+      } else if (cell instanceof HTMLImageElement) {
+        ctx.beginPath();
+        ctx.arc(x + 0.5, y + 0.5, 0.5, 0, 2 * Math.PI);
+        ctx.fillStyle = "orange";
+        ctx.fill();
       }
     }
   }
@@ -240,7 +243,7 @@ function renderScene(ctx, player, grid) {
           stripWidth + 1,
           stripHeight
         );
-      } else if (cell instanceof ImageData) {
+      } else if (cell instanceof HTMLImageElement) {
       }
     }
   }
@@ -299,13 +302,7 @@ async function loadImageData(url) {
   img.src = url;
   return new Promise((resolve, reject) => {
     img.onload = (e) => {
-      const secretCanvas = document.createElement("canvas");
-      secretCanvas.width = img.width;
-      secretCanvas.height = img.height;
-      const ctx = secretCanvas.getContext("2d");
-      ctx.drawImage(img, 0, 0);
-      const imageData = ctx.getImageData(0, 0, img.width, img.height);
-      resolve(imageData);
+      resolve(img);
     };
     img.onerror = (e) => {
       reject(new Error("Failed to load image"));
