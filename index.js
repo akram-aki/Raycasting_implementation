@@ -1,6 +1,6 @@
 const eps = 1e-6;
 const PLAYER_SPEED = 3.1;
-const SCREAN_WIDTH = 800;
+const SCREAN_WIDTH = 300;
 const NEAR_CLIPPING_PLANE = 0.25;
 const FOV = Math.PI * 0.5;
 class Vector2 {
@@ -190,10 +190,13 @@ function drawMap(ctx, mapSize, grid) {
 
   for (let y = 0; y < mapSize.y; y++) {
     for (let x = 0; x < mapSize.x; x++) {
-      if (grid[y][x] !== null) {
+      const cell = grid[y][x];
+      if (cell instanceof Color) {
         const color = grid[y][x];
         ctx.fillStyle = color.toStyle();
         ctx.fillRect(x, y, 1, 1);
+      } else if (cell instanceof ImageData) {
+        ctx.putImageData(cell, x, y);
       }
     }
   }
@@ -223,22 +226,22 @@ function renderScene(ctx, player, grid) {
   for (let x = 0; x < SCREAN_WIDTH; x++) {
     const p = castRay(grid, player.position, r1.lerp(r2, x / SCREAN_WIDTH));
     const c = hittingCell(player.position, p);
-    // console.log(c);
-    // console.log(insideMap(grid, c), c.y, c.x);
     if (insideMap(grid, c) && grid[c.y][c.x] !== null) {
       const v = p.sub(player.position);
       const d = Vector2.fromAngle(player.direction);
       const stripHeight = ctx.canvas.height / v.dot(d);
-      let color = grid[c.y][c.x];
-
-      color = color.brightness(1 / (1 + v.dot(d)));
-      ctx.fillStyle = color.toStyle();
-      ctx.fillRect(
-        x * stripWidth,
-        ctx.canvas.height * 0.5 - stripHeight / 2,
-        stripWidth + 1,
-        stripHeight
-      );
+      let cell = grid[c.y][c.x];
+      if (cell instanceof Color) {
+        cell = cell.brightness(4 / (1 + v.dot(d)));
+        ctx.fillStyle = cell.toStyle();
+        ctx.fillRect(
+          x * stripWidth,
+          ctx.canvas.height * 0.5 - stripHeight / 2,
+          stripWidth + 1,
+          stripHeight
+        );
+      } else if (cell instanceof ImageData) {
+      }
     }
   }
 }
@@ -291,8 +294,39 @@ function renderGame(ctx, player, grid) {
   renderScene(ctx, player, grid);
   minimap(ctx, player, minimapPosition, minimapSize, grid);
 }
+async function loadImageData(url) {
+  const img = new Image(144, 144);
+  img.src = url;
+  return new Promise((resolve, reject) => {
+    img.onload = (e) => {
+      const secretCanvas = document.createElement("canvas");
+      secretCanvas.width = img.width;
+      secretCanvas.height = img.height;
+      const ctx = secretCanvas.getContext("2d");
+      ctx.drawImage(img, 0, 0);
+      const imageData = ctx.getImageData(0, 0, img.width, img.height);
+      resolve(imageData);
+    };
+    img.onerror = (e) => {
+      reject(new Error("Failed to load image"));
+    };
+  });
+}
+(async () => {
+  const game = /** @type {HTMLCanvasElement | null} */ (
+    document.getElementById("game")
+  );
+  if (game === null) {
+    throw new Error("Canvas element not found");
+  }
+  game.width = 800;
+  game.height = 600;
+  const ctx = game.getContext("2d");
 
-(() => {
+  if (ctx === null) {
+    throw new Error("ctx element not found");
+  }
+  const imageData = await loadImageData("./images/monkey.PNG");
   const grid = [
     [
       null,
@@ -315,7 +349,7 @@ function renderGame(ctx, player, grid) {
       null,
       null,
       Color.red(),
-      null,
+      imageData,
       null,
       Color.blue(),
       null,
@@ -458,19 +492,6 @@ function renderGame(ctx, player, grid) {
 
   const player = new Player(new Vector2(4.5, 4.5), Math.PI);
 
-  const game = /** @type {HTMLCanvasElement | null} */ (
-    document.getElementById("game")
-  );
-  if (game === null) {
-    throw new Error("Canvas element not found");
-  }
-  game.width = 800;
-  game.height = 600;
-  const ctx = game.getContext("2d");
-
-  if (ctx === null) {
-    throw new Error("ctx element not found");
-  }
   let movingForward = false;
   let movingBackward = false;
   let turnLeft = false;
