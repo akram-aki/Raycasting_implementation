@@ -55,6 +55,42 @@ class Vector2 {
     return vector.sub(this).scale(t).add(this);
   }
 }
+
+class Color {
+  constructor(r, g, b, a) {
+    this.r = r;
+    this.g = g;
+    this.b = b;
+    this.a = a;
+  }
+  static red() {
+    return new Color(1, 0, 0, 1);
+  }
+  static blue() {
+    return new Color(0, 0, 1, 1);
+  }
+  static green() {
+    return new Color(0, 1, 0, 1);
+  }
+  static yellow() {
+    return new Color(1, 1, 0, 1);
+  }
+  static black() {
+    return new Color(0, 0, 0, 1);
+  }
+  brightness(factor) {
+    return new Color(this.r * factor, this.g * factor, this.b * factor, this.a);
+  }
+  toStyle() {
+    return (
+      `rgba(` +
+      `${Math.floor(this.r * 255)},` +
+      `${Math.floor(this.g * 255)},` +
+      `${Math.floor(this.b * 255)},` +
+      `${this.a})`
+    );
+  }
+}
 class Player {
   constructor(position, direction) {
     this.position = position;
@@ -155,7 +191,8 @@ function drawMap(ctx, mapSize, grid) {
   for (let y = 0; y < mapSize.y; y++) {
     for (let x = 0; x < mapSize.x; x++) {
       if (grid[y][x] !== null) {
-        ctx.fillStyle = grid[y][x];
+        const color = grid[y][x];
+        ctx.fillStyle = color.toStyle();
         ctx.fillRect(x, y, 1, 1);
       }
     }
@@ -192,9 +229,10 @@ function renderScene(ctx, player, grid) {
       const v = p.sub(player.position);
       const d = Vector2.fromAngle(player.direction);
       const stripHeight = ctx.canvas.height / v.dot(d);
-      const color = grid[c.y][c.x];
+      let color = grid[c.y][c.x];
 
-      ctx.fillStyle = color;
+      color = color.brightness(1 / (1 + v.dot(d)));
+      ctx.fillStyle = color.toStyle();
       ctx.fillRect(
         x * stripWidth,
         ctx.canvas.height * 0.5 - stripHeight / 2,
@@ -276,15 +314,15 @@ function renderGame(ctx, player, grid) {
       null,
       null,
       null,
-      "red",
+      Color.red(),
       null,
       null,
-      "blue",
+      Color.blue(),
       null,
       null,
       null,
       null,
-      "magenta",
+      null,
       null,
       null,
     ],
@@ -296,12 +334,92 @@ function renderGame(ctx, player, grid) {
       null,
       null,
       null,
-      "yellow",
+      Color.yellow(),
       null,
       null,
       null,
       null,
-      "red",
+      Color.red(),
+      null,
+    ],
+    [
+      null,
+      null,
+      null,
+      null,
+      null,
+      null,
+      null,
+      null,
+      Color.green(),
+      null,
+      null,
+      null,
+      null,
+      null,
+    ],
+    [
+      null,
+      Color.blue(),
+      null,
+      null,
+      null,
+      null,
+      null,
+      null,
+      null,
+      null,
+      Color.blue(),
+      null,
+      null,
+      null,
+    ],
+    [
+      null,
+      null,
+      null,
+      Color.blue(),
+      null,
+      null,
+      null,
+      null,
+      null,
+      null,
+      null,
+      Color.red(),
+      null,
+      null,
+    ],
+    [
+      null,
+      null,
+      Color.red(),
+      null,
+      null,
+      null,
+      null,
+      Color.red(),
+      null,
+      null,
+      null,
+      null,
+      Color.red(),
+      null,
+    ],
+    [
+      null,
+      null,
+      null,
+      null,
+      Color.red(),
+      null,
+      null,
+      null,
+      Color.red(),
+      null,
+      null,
+      null,
+      null,
       null,
     ],
     [
@@ -312,90 +430,10 @@ function renderGame(ctx, player, grid) {
       null,
       null,
       null,
-      null,
-      "green",
-      null,
+      Color.red(),
       null,
       null,
-      null,
-      null,
-    ],
-    [
-      null,
-      "blue",
-      null,
-      null,
-      null,
-      null,
-      null,
-      null,
-      null,
-      null,
-      "blue",
-      null,
-      null,
-      null,
-    ],
-    [
-      null,
-      null,
-      null,
-      "blue",
-      null,
-      null,
-      "magenta",
-      null,
-      null,
-      null,
-      null,
-      "red",
-      null,
-      null,
-    ],
-    [
-      null,
-      null,
-      "red",
-      null,
-      null,
-      null,
-      null,
-      "red",
-      null,
-      null,
-      null,
-      null,
-      "red",
-      null,
-    ],
-    [
-      null,
-      null,
-      null,
-      null,
-      "red",
-      null,
-      null,
-      null,
-      "red",
-      null,
-      null,
-      null,
-      null,
-      null,
-    ],
-    [
-      null,
-      "magenta",
-      "magenta",
-      "magenta",
-      "magenta",
-      "magenta",
-      null,
-      "red",
-      null,
-      null,
-      "red",
+      Color.red(),
       null,
       null,
       null,
