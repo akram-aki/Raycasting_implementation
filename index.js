@@ -196,10 +196,7 @@ function drawMap(ctx, mapSize, grid) {
         ctx.fillStyle = color.toStyle();
         ctx.fillRect(x, y, 1, 1);
       } else if (cell instanceof HTMLImageElement) {
-        ctx.beginPath();
-        ctx.arc(x + 0.5, y + 0.5, 0.5, 0, 2 * Math.PI);
-        ctx.fillStyle = "orange";
-        ctx.fill();
+        ctx.drawImage(cell, x, y, 1, 1);
       }
     }
   }
@@ -244,6 +241,24 @@ function renderScene(ctx, player, grid) {
           stripHeight
         );
       } else if (cell instanceof HTMLImageElement) {
+        const t = p.sub(c);
+        let u = 0;
+        if ((Math.abs(t.x) < eps || Math.abs(t.x - 1) < eps) && t.y) {
+          u = t.y;
+        } else {
+          u = t.x;
+        }
+        ctx.drawImage(
+          cell,
+          u * cell.width,
+          0,
+          1,
+          cell.height,
+          x * stripWidth,
+          ctx.canvas.height * 0.5 - stripHeight * 0.5,
+          stripWidth + 1,
+          stripHeight
+        );
       }
     }
   }
@@ -297,16 +312,13 @@ function renderGame(ctx, player, grid) {
   renderScene(ctx, player, grid);
   minimap(ctx, player, minimapPosition, minimapSize, grid);
 }
-async function loadImageData(url) {
-  const img = new Image(144, 144);
+async function loadImage(url) {
+  const img = new Image();
   img.src = url;
   return new Promise((resolve, reject) => {
-    img.onload = (e) => {
-      resolve(img);
-    };
-    img.onerror = (e) => {
-      reject(new Error("Failed to load image"));
-    };
+    img.onload = (e) => resolve(img);
+
+    img.onerror = (e) => reject(new Error("Failed to load image"));
   });
 }
 (async () => {
@@ -323,7 +335,7 @@ async function loadImageData(url) {
   if (ctx === null) {
     throw new Error("ctx element not found");
   }
-  const imageData = await loadImageData("./images/monkey.PNG");
+  const image = await loadImage("./textures/square_0_16.PNG");
   const grid = [
     [
       null,
@@ -345,10 +357,10 @@ async function loadImageData(url) {
       null,
       null,
       null,
-      Color.red(),
-      imageData,
+      image,
+      image,
       null,
-      Color.blue(),
+      image,
       null,
       null,
       null,
@@ -370,7 +382,7 @@ async function loadImageData(url) {
       null,
       null,
       null,
-      Color.red(),
+      image,
       null,
     ],
     [
@@ -417,40 +429,24 @@ async function loadImageData(url) {
       null,
       null,
       null,
-      Color.red(),
+      image,
       null,
       null,
     ],
     [
       null,
       null,
-      Color.red(),
+      image,
       null,
       null,
       null,
       null,
-      Color.red(),
+      image,
       null,
       null,
       null,
       null,
-      Color.red(),
-      null,
-    ],
-    [
-      null,
-      null,
-      null,
-      null,
-      Color.red(),
-      null,
-      null,
-      null,
-      Color.red(),
-      null,
-      null,
-      null,
-      null,
+      image,
       null,
     ],
     [
@@ -458,13 +454,29 @@ async function loadImageData(url) {
       null,
       null,
       null,
+      image,
+      null,
+      null,
+      null,
+      image,
+      null,
+      null,
+      null,
+      null,
+      null,
+    ],
+    [
+      null,
+      null,
+      null,
+      null,
       null,
       null,
       null,
       Color.red(),
       null,
       null,
-      Color.red(),
+      image,
       null,
       null,
       null,
@@ -487,7 +499,7 @@ async function loadImageData(url) {
     ],
   ];
 
-  const player = new Player(new Vector2(4.5, 4.5), Math.PI);
+  const player = new Player(new Vector2(4.5, 3.7), Math.PI * 1.5);
 
   let movingForward = false;
   let movingBackward = false;
@@ -495,32 +507,32 @@ async function loadImageData(url) {
   let turnRight = false;
   window.addEventListener("keydown", (e) => {
     if (!e.repeat) {
-      if (e.key === "ArrowUp") {
+      if (e.key === "w") {
         movingForward = true;
       }
-      if (e.key === "ArrowDown") {
+      if (e.key === "s") {
         movingBackward = true;
       }
-      if (e.key === "ArrowLeft") {
+      if (e.key === "a") {
         turnLeft = true;
       }
-      if (e.key === "ArrowRight") {
+      if (e.key === "d") {
         turnRight = true;
       }
     }
   });
   window.addEventListener("keyup", (e) => {
     if (!e.repeat) {
-      if (e.key === "ArrowUp") {
+      if (e.key === "w") {
         movingForward = false;
       }
-      if (e.key === "ArrowDown") {
+      if (e.key === "s") {
         movingBackward = false;
       }
-      if (e.key === "ArrowLeft") {
+      if (e.key === "a") {
         turnLeft = false;
       }
-      if (e.key === "ArrowRight") {
+      if (e.key === "d") {
         turnRight = false;
       }
     }
