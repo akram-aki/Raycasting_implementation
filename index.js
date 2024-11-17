@@ -106,7 +106,34 @@ class Player {
     return [p, p1, p2];
   }
 }
-
+class Scene {
+  constructor(cells) {
+    this.height = cells.length;
+    this.width = Number.MIN_VALUE;
+    for (let row of cells) {
+      this.width = Math.max(this.width, row.length);
+    }
+    this.cells = [];
+    for (let row of cells) {
+      this.cells = this.cells.concat(row);
+      for (let i = 0; i < this.width - row.length; ++i) {
+        this.cells.push(null);
+      }
+    }
+  }
+  size() {
+    return new Vector2(this.width, this.height);
+  }
+  getCell(p) {
+    if (!this.insideMap(p)) return undefined;
+    const fp = new Vector2(Math.floor(p.x), Math.floor(p.y));
+    return this.cells[fp.y * this.height + fp.x];
+  }
+  insideMap(p) {
+    const size = this.size();
+    return p.x >= 0 && p.x < size.x && p.y >= 0 && p.y < size.y;
+  }
+}
 function fillCircle(ctx, vector, radius) {
   ctx.beginPath();
   ctx.arc(vector.x, vector.y, radius, 0, Math.PI * 2, true);
@@ -163,15 +190,12 @@ function rayStep(p1, p2) {
     return p3;
   }
 }
-function gridSize(grid) {
-  return new Vector2(grid[0].length, grid.length);
-}
 
-function castRay(grid, p1, p2) {
+function castRay(map, p1, p2) {
   for (;;) {
     const c = hittingCell(p1, p2);
     // console.log(c);
-    if (!insideMap(grid, c) || grid[c.y][c.x] !== null) break;
+    if (!map.insideMap(c) || map.getCell(c) !== null) break;
     const p3 = rayStep(p1, p2);
     p1 = p2;
     p2 = p3;
@@ -179,7 +203,7 @@ function castRay(grid, p1, p2) {
   return p2;
 }
 
-function drawMap(ctx, mapSize, grid) {
+function drawMap(ctx, mapSize, map) {
   for (let x = 0; x <= mapSize.x; x++) {
     drawLine(ctx, x, 0, x, mapSize.y);
   }
@@ -187,12 +211,11 @@ function drawMap(ctx, mapSize, grid) {
   for (let y = 0; y <= mapSize.y; y++) {
     drawLine(ctx, 0, y, mapSize.x, y);
   }
-
   for (let y = 0; y < mapSize.y; y++) {
     for (let x = 0; x < mapSize.x; x++) {
-      const cell = grid[y][x];
+      const cell = map.getCell(new Vector2(x, y));
       if (cell instanceof Color) {
-        const color = grid[y][x];
+        const color = map.getCell(new Vector2(x, y));
         ctx.fillStyle = color.toStyle();
         ctx.fillRect(x, y, 1, 1);
       } else if (cell instanceof HTMLImageElement) {
@@ -207,10 +230,6 @@ function hittingCell(p1, p2) {
   let y = Math.floor(p2.y + Math.sign(d.y) * eps);
   return new Vector2(x, y);
 }
-function insideMap(map, p) {
-  const size = gridSize(map);
-  return p.x >= 0 && p.x < size.x && p.y >= 0 && p.y < size.y;
-}
 
 function drawFov(ctx, player, p, p1, p2) {
   drawLine(ctx, p.x, p.y, p1.x, p1.y);
@@ -218,19 +237,19 @@ function drawFov(ctx, player, p, p1, p2) {
   drawLine(ctx, player.position.x, player.position.y, p1.x, p1.y);
   drawLine(ctx, player.position.x, player.position.y, p2.x, p2.y);
 }
-function renderScene(ctx, player, grid) {
+function renderScene(ctx, player, map) {
   const stripWidth = Math.ceil(ctx.canvas.width / SCREAN_WIDTH);
 
   const [r, r1, r2] = player.getFov();
   // console.log(r1.lerp(r2, 1 / SCREAN_WIDTH));
   for (let x = 0; x < SCREAN_WIDTH; x++) {
-    const p = castRay(grid, player.position, r1.lerp(r2, x / SCREAN_WIDTH));
+    const p = castRay(map, player.position, r1.lerp(r2, x / SCREAN_WIDTH));
     const c = hittingCell(player.position, p);
-    if (insideMap(grid, c) && grid[c.y][c.x] !== null) {
+    if (map.insideMap(c) && map.getCell(c) !== null) {
       const v = p.sub(player.position);
       const d = Vector2.fromAngle(player.direction);
       const stripHeight = ctx.canvas.height / v.dot(d);
-      let cell = grid[c.y][c.x];
+      let cell = map.getCell(c);
       if (cell instanceof Color) {
         cell = cell.brightness(4 / (1 + v.dot(d)));
         ctx.fillStyle = cell.toStyle();
@@ -263,19 +282,19 @@ function renderScene(ctx, player, grid) {
     }
   }
 }
-function minimap(ctx, player, position, size, grid) {
+function minimap(ctx, player, minimapPosition, minimapSize, map) {
   ctx.save();
-  const mapSize = gridSize(grid);
+  const mapSize = map.size();
 
-  ctx.translate(...position.array());
-  ctx.scale(...size.div(mapSize).array());
+  ctx.translate(...minimapPosition.array());
+  ctx.scale(...minimapSize.div(mapSize).array());
 
   ctx.fillStyle = "#181818";
   ctx.fillRect(0, 0, mapSize.x, mapSize.y);
 
   ctx.lineWidth = 0.05;
   ctx.strokeStyle = "#505050";
-  drawMap(ctx, mapSize, grid);
+  drawMap(ctx, mapSize, map);
 
   ctx.fillStyle = "magenta";
   fillCircle(ctx, player.position, 0.07);
@@ -303,14 +322,14 @@ function minimap(ctx, player, position, size, grid) {
   // }
   ctx.restore();
 }
-function renderGame(ctx, player, grid) {
-  const cellSize = ctx.canvas.width / grid[0].length;
-  const minimapSize = gridSize(grid).scale(cellSize * 0.3);
+function renderGame(ctx, player, map) {
+  const cellSize = ctx.canvas.width / map.width;
+  const minimapSize = map.size().scale(cellSize * 0.3);
   const minimapPosition = new Vector2(0, 0);
   ctx.fillStyle = "#181818";
   ctx.fillRect(0, 0, ctx.canvas.width, ctx.canvas.height);
-  renderScene(ctx, player, grid);
-  minimap(ctx, player, minimapPosition, minimapSize, grid);
+  renderScene(ctx, player, map);
+  minimap(ctx, player, minimapPosition, minimapSize, map);
 }
 async function loadImage(url) {
   const img = new Image();
@@ -318,7 +337,7 @@ async function loadImage(url) {
   return new Promise((resolve, reject) => {
     img.onload = (e) => resolve(img);
 
-    img.onerror = (e) => reject(new Error("Failed to load image"));
+    img.onerror = (e) => reject(new Error("Failed to load wall1"));
   });
 }
 (async () => {
@@ -335,8 +354,11 @@ async function loadImage(url) {
   if (ctx === null) {
     throw new Error("ctx element not found");
   }
-  const image = await loadImage("./textures/square_0_16.PNG");
-  const grid = [
+  const wall1 = await loadImage("./textures/square_0_16.PNG").catch((e) =>
+    Color.red()
+  );
+
+  const map = new Scene([
     [
       null,
       null,
@@ -357,10 +379,10 @@ async function loadImage(url) {
       null,
       null,
       null,
-      image,
-      image,
+      wall1,
+      wall1,
       null,
-      image,
+      wall1,
       null,
       null,
       null,
@@ -382,7 +404,7 @@ async function loadImage(url) {
       null,
       null,
       null,
-      image,
+      wall1,
       null,
     ],
     [
@@ -429,24 +451,24 @@ async function loadImage(url) {
       null,
       null,
       null,
-      image,
+      wall1,
       null,
       null,
     ],
     [
       null,
       null,
-      image,
+      wall1,
       null,
       null,
       null,
       null,
-      image,
+      wall1,
       null,
       null,
       null,
       null,
-      image,
+      wall1,
       null,
     ],
     [
@@ -454,11 +476,11 @@ async function loadImage(url) {
       null,
       null,
       null,
-      image,
+      wall1,
       null,
       null,
       null,
-      image,
+      wall1,
       null,
       null,
       null,
@@ -476,7 +498,7 @@ async function loadImage(url) {
       Color.red(),
       null,
       null,
-      image,
+      wall1,
       null,
       null,
       null,
@@ -497,8 +519,7 @@ async function loadImage(url) {
       null,
       null,
     ],
-  ];
-
+  ]);
   const player = new Player(new Vector2(4.5, 3.7), Math.PI * 1.5);
 
   let movingForward = false;
@@ -547,10 +568,14 @@ async function loadImage(url) {
       PLAYER_SPEED * deltaTime
     );
     if (movingForward) {
-      player.position = player.position.add(playerVelocity);
+      const newPosition = player.position.add(playerVelocity);
+      if (map.insideMap(newPosition) && map.getCell(player.position) === null)
+        player.position = player.position.add(playerVelocity);
     }
     if (movingBackward) {
-      player.position = player.position.sub(playerVelocity);
+      const newPosition = player.position.sub(playerVelocity);
+      if (map.insideMap(newPosition) && map.getCell(player.position) === null)
+        player.position = player.position.sub(playerVelocity);
     }
     if (turnLeft) {
       player.direction -= Math.PI * 0.02;
@@ -558,7 +583,7 @@ async function loadImage(url) {
     if (turnRight) {
       player.direction += Math.PI * 0.02;
     }
-    renderGame(ctx, player, grid);
+    renderGame(ctx, player, map);
     window.requestAnimationFrame(frame);
   };
   window.requestAnimationFrame((timestamp) => {
