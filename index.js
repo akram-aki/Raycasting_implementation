@@ -127,7 +127,7 @@ class Scene {
   getCell(p) {
     if (!this.insideMap(p)) return undefined;
     const fp = new Vector2(Math.floor(p.x), Math.floor(p.y));
-    return this.cells[fp.y * this.height + fp.x];
+    return this.cells[fp.y * this.width + fp.x];
   }
   insideMap(p) {
     const size = this.size();
