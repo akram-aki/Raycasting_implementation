@@ -1,3 +1,4 @@
+// @ts-nocheck
 const eps = 1e-6;
 const PLAYER_SPEED = 3.1;
 const SCREAN_WIDTH = 300;
@@ -10,6 +11,9 @@ class Vector2 {
   }
   static fromAngle(angle) {
     return new Vector2(Math.cos(angle), Math.sin(angle));
+  }
+  static scalar(val) {
+    return new Vector2(val, val);
   }
   dot(vector) {
     return this.x * vector.x + this.y * vector.y;
@@ -56,6 +60,7 @@ class Vector2 {
   }
 }
 
+const PLAYER_SIZE = new Vector2(0.5, 0.5);
 class Color {
   constructor(r, g, b, a) {
     this.r = r;
@@ -133,6 +138,10 @@ class Scene {
     const size = this.size();
     return p.x >= 0 && p.x < size.x && p.y >= 0 && p.y < size.y;
   }
+  isWall(p) {
+    const c = this.getCell(p);
+    return c !== null && c !== undefined;
+  }
 }
 function fillCircle(ctx, vector, radius) {
   ctx.beginPath();
@@ -198,6 +207,7 @@ function castRay(map, p1, p2) {
     if (!map.insideMap(c) || map.getCell(c) !== null) break;
     const p3 = rayStep(p1, p2);
     p1 = p2;
+    let i = 1;
     p2 = p3;
   }
   return p2;
@@ -331,6 +341,18 @@ function renderGame(ctx, player, map) {
   renderScene(ctx, player, map);
   minimap(ctx, player, minimapPosition, minimapSize, map);
 }
+function canPlayerGoThere(map, newPosition) {
+  const corner = newPosition.sub(new Vector2(PLAYER_SIZE, PLAYER_SIZE));
+  console.log(corner);
+  for (let dx = 0; dx < 2; ++dx) {
+    for (let dy = 0; dy < 2; ++dy) {
+      if (map.isWall(corner.add(new Vector2(dx, dy).scale(PLAYER_SIZE)))) {
+        return false;
+      }
+    }
+  }
+  return true;
+}
 async function loadImage(url) {
   const img = new Image();
   img.src = url;
@@ -360,39 +382,130 @@ async function loadImage(url) {
 
   const map = new Scene([
     [
-      null,
-      null,
-      null,
-      null,
-      null,
-      null,
-      null,
-      null,
-      null,
-      null,
-      null,
-      null,
-      null,
-      null,
+      wall1,
+      wall1,
+      wall1,
+      wall1,
+      wall1,
+      wall1,
+      wall1,
+      wall1,
+      wall1,
+      wall1,
+      wall1,
+      wall1,
+      wall1,
+      wall1,
+      wall1,
     ],
     [
-      null,
-      null,
-      null,
-      wall1,
-      wall1,
-      null,
       wall1,
       null,
       null,
       null,
       null,
       null,
+      wall1,
+      Color.red(),
       null,
       null,
+      null,
+      null,
+      null,
+      null,
+      wall1,
     ],
     [
+      wall1,
       null,
+      wall1,
+      wall1,
+      wall1,
+      null,
+      wall1,
+      null,
+      wall1,
+      wall1,
+      wall1,
+      wall1,
+      null,
+      null,
+      wall1,
+    ],
+    [
+      wall1,
+      null,
+      null,
+      null,
+      wall1,
+      null,
+      null,
+      null,
+      null,
+      null,
+      null,
+      wall1,
+      null,
+      null,
+      wall1,
+    ],
+    [
+      wall1,
+      wall1,
+      wall1,
+      null,
+      wall1,
+      wall1,
+      wall1,
+      null,
+      wall1,
+      wall1,
+      null,
+      wall1,
+      null,
+      null,
+      wall1,
+    ],
+    [
+      wall1,
+      Color.blue(),
+      null,
+      null,
+      null,
+      null,
+      wall1,
+      null,
+      wall1,
+      null,
+      null,
+      null,
+      null,
+      null,
+      wall1,
+    ],
+    [
+      wall1,
+      wall1,
+      wall1,
+      null,
+      wall1,
+      null,
+      wall1,
+      null,
+      wall1,
+      null,
+      wall1,
+      wall1,
+      wall1,
+      null,
+      wall1,
+    ],
+    [
+      wall1,
+      null,
+      null,
+      null,
+      wall1,
       null,
       null,
       null,
@@ -400,16 +513,29 @@ async function loadImage(url) {
       null,
       null,
       Color.yellow(),
-      null,
-      null,
-      null,
-      null,
       wall1,
       null,
+      wall1,
     ],
     [
+      wall1,
       null,
+      wall1,
+      wall1,
+      wall1,
+      wall1,
+      wall1,
+      wall1,
+      wall1,
+      wall1,
+      wall1,
+      wall1,
+      wall1,
       null,
+      wall1,
+    ],
+    [
+      wall1,
       null,
       null,
       null,
@@ -422,105 +548,28 @@ async function loadImage(url) {
       null,
       null,
       null,
+      null,
+      wall1,
     ],
     [
-      null,
-      Color.blue(),
-      null,
-      null,
-      null,
-      null,
-      null,
-      null,
-      null,
-      null,
-      Color.blue(),
-      null,
-      null,
-      null,
-    ],
-    [
-      null,
-      null,
-      null,
-      Color.blue(),
-      null,
-      null,
-      null,
-      null,
-      null,
-      null,
-      null,
       wall1,
-      null,
-      null,
-    ],
-    [
-      null,
-      null,
       wall1,
-      null,
-      null,
-      null,
-      null,
       wall1,
-      null,
-      null,
-      null,
-      null,
       wall1,
-      null,
-    ],
-    [
-      null,
-      null,
-      null,
-      null,
       wall1,
-      null,
-      null,
-      null,
       wall1,
-      null,
-      null,
-      null,
-      null,
-      null,
-    ],
-    [
-      null,
-      null,
-      null,
-      null,
-      null,
-      null,
-      null,
-      Color.red(),
-      null,
-      null,
       wall1,
-      null,
-      null,
-      null,
-    ],
-    [
-      null,
-      null,
-      null,
-      null,
-      null,
-      null,
-      null,
-      null,
-      null,
-      null,
-      null,
-      null,
-      null,
-      null,
+      wall1,
+      wall1,
+      wall1,
+      wall1,
+      wall1,
+      wall1,
+      wall1,
+      wall1,
     ],
   ]);
-  const player = new Player(new Vector2(4.5, 3.7), Math.PI * 1.5);
+  const player = new Player(new Vector2(3.5, 3.7), Math.PI * 1.5);
 
   let movingForward = false;
   let movingBackward = false;
@@ -567,15 +616,18 @@ async function loadImage(url) {
     const playerVelocity = Vector2.fromAngle(player.direction).scale(
       PLAYER_SPEED * deltaTime
     );
+
     if (movingForward) {
       const newPosition = player.position.add(playerVelocity);
-      if (map.insideMap(newPosition) && map.getCell(player.position) === null)
-        player.position = player.position.add(playerVelocity);
+      if (canPlayerGoThere(map, newPosition)) {
+        player.position = newPosition;
+      }
     }
     if (movingBackward) {
       const newPosition = player.position.sub(playerVelocity);
-      if (map.insideMap(newPosition) && map.getCell(player.position) === null)
-        player.position = player.position.sub(playerVelocity);
+      if (canPlayerGoThere(map, newPosition)) {
+        player.position = newPosition;
+      }
     }
     if (turnLeft) {
       player.direction -= Math.PI * 0.02;
@@ -583,6 +635,7 @@ async function loadImage(url) {
     if (turnRight) {
       player.direction += Math.PI * 0.02;
     }
+
     renderGame(ctx, player, map);
     window.requestAnimationFrame(frame);
   };
