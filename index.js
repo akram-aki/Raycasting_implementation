@@ -60,7 +60,7 @@ class Vector2 {
   }
 }
 
-const PLAYER_SIZE = new Vector2(0.5, 0.5);
+const PLAYER_SIZE = 0.25;
 class Color {
   constructor(r, g, b, a) {
     this.r = r;
@@ -343,7 +343,6 @@ function renderGame(ctx, player, map) {
 }
 function canPlayerGoThere(map, newPosition) {
   const corner = newPosition.sub(new Vector2(PLAYER_SIZE, PLAYER_SIZE));
-  console.log(corner);
   for (let dx = 0; dx < 2; ++dx) {
     for (let dy = 0; dy < 2; ++dy) {
       if (map.isWall(corner.add(new Vector2(dx, dy).scale(PLAYER_SIZE)))) {
