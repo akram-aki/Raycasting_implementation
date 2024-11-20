@@ -1,7 +1,9 @@
 // @ts-nocheck
 const eps = 1e-6;
 const PLAYER_SPEED = 3.1;
-const SCREAN_WIDTH = 300;
+const SCREEN_FACTOR = 50;
+const SCREEN_WIDTH = 16 * SCREEN_FACTOR;
+const SCREEN_HEIGHT = 9 * SCREEN_FACTOR;
 const NEAR_CLIPPING_PLANE = 0.25;
 const FOV = Math.PI * 0.5;
 class Vector2 {
@@ -60,8 +62,9 @@ class Vector2 {
   }
 }
 
-const PLAYER_SIZE = 0.25;
-class Color {
+const PLAYER_SIZE = 0.3;
+
+class RGBA {
   constructor(r, g, b, a) {
     this.r = r;
     this.g = g;
@@ -69,22 +72,22 @@ class Color {
     this.a = a;
   }
   static red() {
-    return new Color(1, 0, 0, 1);
+    return new RGBA(1, 0, 0, 1);
   }
   static blue() {
-    return new Color(0, 0, 1, 1);
+    return new RGBA(0, 0, 1, 1);
   }
   static green() {
-    return new Color(0, 1, 0, 1);
+    return new RGBA(0, 1, 0, 1);
   }
   static yellow() {
-    return new Color(1, 1, 0, 1);
+    return new RGBA(1, 1, 0, 1);
   }
   static black() {
-    return new Color(0, 0, 0, 1);
+    return new RGBA(0, 0, 0, 1);
   }
   brightness(factor) {
-    return new Color(this.r * factor, this.g * factor, this.b * factor, this.a);
+    return new RGBA(this.r * factor, this.g * factor, this.b * factor, this.a);
   }
   toStyle() {
     return (
@@ -224,7 +227,7 @@ function drawMap(ctx, mapSize, map) {
   for (let y = 0; y < mapSize.y; y++) {
     for (let x = 0; x < mapSize.x; x++) {
       const cell = map.getCell(new Vector2(x, y));
-      if (cell instanceof Color) {
+      if (cell instanceof RGBA) {
         const color = map.getCell(new Vector2(x, y));
         ctx.fillStyle = color.toStyle();
         ctx.fillRect(x, y, 1, 1);
@@ -248,26 +251,26 @@ function drawFov(ctx, player, p, p1, p2) {
   drawLine(ctx, player.position.x, player.position.y, p2.x, p2.y);
 }
 function renderScene(ctx, player, map) {
-  const stripWidth = Math.ceil(ctx.canvas.width / SCREAN_WIDTH);
-
+  ctx.save();
+  ctx.scale(ctx.canvas.width / SCREEN_WIDTH, ctx.canvas.height / SCREEN_HEIGHT);
   const [r, r1, r2] = player.getFov();
-  // console.log(r1.lerp(r2, 1 / SCREAN_WIDTH));
-  for (let x = 0; x < SCREAN_WIDTH; x++) {
-    const p = castRay(map, player.position, r1.lerp(r2, x / SCREAN_WIDTH));
+
+  for (let x = 0; x < SCREEN_WIDTH; x++) {
+    const p = castRay(map, player.position, r1.lerp(r2, x / SCREEN_WIDTH));
     const c = hittingCell(player.position, p);
     if (map.insideMap(c) && map.getCell(c) !== null) {
       const v = p.sub(player.position);
       const d = Vector2.fromAngle(player.direction);
-      const stripHeight = ctx.canvas.height / v.dot(d);
+      const stripHeight = SCREEN_HEIGHT / v.dot(d);
       let cell = map.getCell(c);
-      if (cell instanceof Color) {
+      if (cell instanceof RGBA) {
         cell = cell.brightness(4 / (1 + v.dot(d)));
         ctx.fillStyle = cell.toStyle();
         ctx.fillRect(
-          x * stripWidth,
-          ctx.canvas.height * 0.5 - stripHeight / 2,
-          stripWidth + 1,
-          stripHeight
+          Math.floor(x),
+          Math.floor(SCREEN_HEIGHT * 0.5 - stripHeight / 2),
+          Math.ceil(1),
+          Math.ceil(stripHeight)
         );
       } else if (cell instanceof HTMLImageElement) {
         const t = p.sub(c);
@@ -279,18 +282,19 @@ function renderScene(ctx, player, map) {
         }
         ctx.drawImage(
           cell,
-          u * cell.width,
+          Math.floor(u * cell.width),
           0,
           1,
           cell.height,
-          x * stripWidth,
-          ctx.canvas.height * 0.5 - stripHeight * 0.5,
-          stripWidth + 1,
-          stripHeight
+          Math.floor(x),
+          Math.floor(SCREEN_HEIGHT * 0.5 - stripHeight * 0.5),
+          Math.ceil(1),
+          Math.ceil(stripHeight)
         );
       }
     }
   }
+  ctx.restore();
 }
 function minimap(ctx, player, minimapPosition, minimapSize, map) {
   ctx.save();
@@ -338,6 +342,9 @@ function renderGame(ctx, player, map) {
   const minimapPosition = new Vector2(0, 0);
   ctx.fillStyle = "#181818";
   ctx.fillRect(0, 0, ctx.canvas.width, ctx.canvas.height);
+  ctx.fillStyle = "hsla(0,100%,9%,1)";
+  ctx.fillRect(0, 0, ctx.canvas.width, ctx.canvas.height * 0.5);
+  ctx.fillStyle = "#303030";
   renderScene(ctx, player, map);
   minimap(ctx, player, minimapPosition, minimapSize, map);
 }
@@ -376,7 +383,7 @@ async function loadImage(url) {
     throw new Error("ctx element not found");
   }
   const wall1 = await loadImage("./textures/square_0_16.PNG").catch((e) =>
-    Color.red()
+    RGBA.red()
   );
 
   const map = new Scene([
@@ -405,7 +412,7 @@ async function loadImage(url) {
       null,
       null,
       wall1,
-      Color.red(),
+      RGBA.red(),
       null,
       null,
       null,
@@ -467,7 +474,7 @@ async function loadImage(url) {
     ],
     [
       wall1,
-      Color.blue(),
+      RGBA.blue(),
       null,
       null,
       null,
@@ -511,7 +518,7 @@ async function loadImage(url) {
       null,
       null,
       null,
-      Color.yellow(),
+      RGBA.yellow(),
       wall1,
       null,
       wall1,
@@ -541,7 +548,7 @@ async function loadImage(url) {
       null,
       null,
       null,
-      Color.green(),
+      RGBA.green(),
       null,
       null,
       null,
@@ -617,9 +624,13 @@ async function loadImage(url) {
     );
 
     if (movingForward) {
-      const newPosition = player.position.add(playerVelocity);
-      if (canPlayerGoThere(map, newPosition)) {
-        player.position = newPosition;
+      const nx = player.position.x + playerVelocity.x;
+      if (canPlayerGoThere(map, new Vector2(nx, player.position.y))) {
+        player.position.x = nx;
+      }
+      const ny = player.position.y + playerVelocity.y;
+      if (canPlayerGoThere(map, new Vector2(player.position.x, ny))) {
+        player.position.y = ny;
       }
     }
     if (movingBackward) {

@@ -4,3 +4,4 @@ package.json
 jsconfig.json
 .venv
 textures
+.eslintrc.json
