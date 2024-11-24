@@ -1,10 +1,11 @@
 // @ts-nocheck
 const eps = 1e-6;
 const PLAYER_SPEED = 3.1;
-const SCREEN_FACTOR = 50;
+const SCREEN_FACTOR = 30;
 const SCREEN_WIDTH = 16 * SCREEN_FACTOR;
 const SCREEN_HEIGHT = 9 * SCREEN_FACTOR;
 const NEAR_CLIPPING_PLANE = 0.25;
+const FAR_CLIPPING_PLANE = 10;
 const FOV = Math.PI * 0.5;
 class Vector2 {
   constructor(x, y) {
@@ -104,18 +105,20 @@ class Player {
     this.position = position;
     this.direction = direction;
   }
-  getFov() {
+  getFov(clippingPlane) {
     const p = this.position.add(
-      Vector2.fromAngle(this.direction).scale(NEAR_CLIPPING_PLANE)
+      Vector2.fromAngle(this.direction).scale(clippingPlane)
     );
-    const l = Math.tan(FOV * 0.5) * NEAR_CLIPPING_PLANE;
+    const l = Math.tan(FOV * 0.5) * clippingPlane;
     const p2 = p.sub(this.position).rot90().normalize().scale(l).add(p);
     const p1 = p.sub(this.position).rot90().normalize().scale(-l).add(p);
     return [p, p1, p2];
   }
 }
+
 class Scene {
-  constructor(cells) {
+  constructor(cells, floor) {
+    this.floor = floor;
     this.height = cells.length;
     this.width = Number.MIN_VALUE;
     for (let row of cells) {
@@ -144,6 +147,10 @@ class Scene {
   isWall(p) {
     const c = this.getCell(p);
     return c !== null && c !== undefined;
+  }
+  getFloor(p) {
+    if (!this.insideMap(p)) return undefined;
+    return this.floor;
   }
 }
 function fillCircle(ctx, vector, radius) {
@@ -250,10 +257,10 @@ function drawFov(ctx, player, p, p1, p2) {
   drawLine(ctx, player.position.x, player.position.y, p1.x, p1.y);
   drawLine(ctx, player.position.x, player.position.y, p2.x, p2.y);
 }
-function renderScene(ctx, player, map) {
+function renderWalls(ctx, player, map) {
   ctx.save();
   ctx.scale(ctx.canvas.width / SCREEN_WIDTH, ctx.canvas.height / SCREEN_HEIGHT);
-  const [r, r1, r2] = player.getFov();
+  const [r, r1, r2] = player.getFov(NEAR_CLIPPING_PLANE);
 
   for (let x = 0; x < SCREEN_WIDTH; x++) {
     const p = castRay(map, player.position, r1.lerp(r2, x / SCREEN_WIDTH));
@@ -296,6 +303,23 @@ function renderScene(ctx, player, map) {
   }
   ctx.restore();
 }
+function renderFloor(ctx, player, map) {
+  ctx.save();
+  ctx.scale(ctx.canvas.width / SCREEN_WIDTH, ctx.canvas.height / SCREEN_HEIGHT);
+
+  for (
+    let plane = NEAR_CLIPPING_PLANE;
+    plane <= FAR_CLIPPING_PLANE;
+    plane += 0.5
+  ) {
+    const [p, p1, p2] = player.getFov(plane);
+    for (let dx = 0; dx < SCREEN_WIDTH; dx += 1) {
+      const pp = p1.lerp(p2, dx / SCREEN_WIDTH);
+      map.getFloor(pp);
+    }
+  }
+  ctx.restre();
+}
 function minimap(ctx, player, minimapPosition, minimapSize, map) {
   ctx.save();
   const mapSize = map.size();
@@ -313,9 +337,6 @@ function minimap(ctx, player, minimapPosition, minimapSize, map) {
   ctx.fillStyle = "magenta";
   fillCircle(ctx, player.position, 0.07);
 
-  const [p, p1, p2] = player.getFov();
-  ctx.strokeStyle = "magenta";
-  drawFov(ctx, player, p, p1, p2);
   ///
   // for (;;) {
   //   ctx.fillStyle = "magenta";
@@ -345,7 +366,8 @@ function renderGame(ctx, player, map) {
   ctx.fillStyle = "hsla(0,100%,9%,1)";
   ctx.fillRect(0, 0, ctx.canvas.width, ctx.canvas.height * 0.5);
   ctx.fillStyle = "#303030";
-  renderScene(ctx, player, map);
+  // renderFloor(ctx, player, map);
+  renderWalls(ctx, player, map);
   minimap(ctx, player, minimapPosition, minimapSize, map);
 }
 function canPlayerGoThere(map, newPosition) {
@@ -386,195 +408,198 @@ async function loadImage(url) {
     RGBA.red()
   );
 
-  const map = new Scene([
+  const map = new Scene(
     [
-      wall1,
-      wall1,
-      wall1,
-      wall1,
-      wall1,
-      wall1,
-      wall1,
-      wall1,
-      wall1,
-      wall1,
-      wall1,
-      wall1,
-      wall1,
-      wall1,
-      wall1,
+      [
+        wall1,
+        wall1,
+        wall1,
+        wall1,
+        wall1,
+        wall1,
+        wall1,
+        wall1,
+        wall1,
+        wall1,
+        wall1,
+        wall1,
+        wall1,
+        wall1,
+        wall1,
+      ],
+      [
+        wall1,
+        null,
+        null,
+        null,
+        null,
+        null,
+        wall1,
+        RGBA.red(),
+        null,
+        null,
+        null,
+        null,
+        null,
+        null,
+        wall1,
+      ],
+      [
+        wall1,
+        null,
+        wall1,
+        wall1,
+        wall1,
+        null,
+        wall1,
+        null,
+        wall1,
+        wall1,
+        wall1,
+        wall1,
+        null,
+        null,
+        wall1,
+      ],
+      [
+        wall1,
+        null,
+        null,
+        null,
+        wall1,
+        null,
+        null,
+        null,
+        null,
+        null,
+        null,
+        wall1,
+        null,
+        null,
+        wall1,
+      ],
+      [
+        wall1,
+        wall1,
+        wall1,
+        null,
+        wall1,
+        wall1,
+        wall1,
+        null,
+        wall1,
+        wall1,
+        null,
+        wall1,
+        null,
+        null,
+        wall1,
+      ],
+      [
+        wall1,
+        RGBA.blue(),
+        null,
+        null,
+        null,
+        null,
+        wall1,
+        null,
+        wall1,
+        null,
+        null,
+        null,
+        null,
+        null,
+        wall1,
+      ],
+      [
+        wall1,
+        wall1,
+        wall1,
+        null,
+        wall1,
+        null,
+        wall1,
+        null,
+        wall1,
+        null,
+        wall1,
+        wall1,
+        wall1,
+        null,
+        wall1,
+      ],
+      [
+        wall1,
+        null,
+        null,
+        null,
+        wall1,
+        null,
+        null,
+        null,
+        null,
+        null,
+        null,
+        RGBA.yellow(),
+        wall1,
+        null,
+        wall1,
+      ],
+      [
+        wall1,
+        null,
+        wall1,
+        wall1,
+        wall1,
+        wall1,
+        wall1,
+        wall1,
+        wall1,
+        wall1,
+        wall1,
+        wall1,
+        wall1,
+        null,
+        wall1,
+      ],
+      [
+        wall1,
+        null,
+        null,
+        null,
+        null,
+        null,
+        null,
+        RGBA.green(),
+        null,
+        null,
+        null,
+        null,
+        null,
+        null,
+        wall1,
+      ],
+      [
+        wall1,
+        wall1,
+        wall1,
+        wall1,
+        wall1,
+        wall1,
+        wall1,
+        wall1,
+        wall1,
+        wall1,
+        wall1,
+        wall1,
+        wall1,
+        wall1,
+        wall1,
+      ],
     ],
-    [
-      wall1,
-      null,
-      null,
-      null,
-      null,
-      null,
-      wall1,
-      RGBA.red(),
-      null,
-      null,
-      null,
-      null,
-      null,
-      null,
-      wall1,
-    ],
-    [
-      wall1,
-      null,
-      wall1,
-      wall1,
-      wall1,
-      null,
-      wall1,
-      null,
-      wall1,
-      wall1,
-      wall1,
-      wall1,
-      null,
-      null,
-      wall1,
-    ],
-    [
-      wall1,
-      null,
-      null,
-      null,
-      wall1,
-      null,
-      null,
-      null,
-      null,
-      null,
-      null,
-      wall1,
-      null,
-      null,
-      wall1,
-    ],
-    [
-      wall1,
-      wall1,
-      wall1,
-      null,
-      wall1,
-      wall1,
-      wall1,
-      null,
-      wall1,
-      wall1,
-      null,
-      wall1,
-      null,
-      null,
-      wall1,
-    ],
-    [
-      wall1,
-      RGBA.blue(),
-      null,
-      null,
-      null,
-      null,
-      wall1,
-      null,
-      wall1,
-      null,
-      null,
-      null,
-      null,
-      null,
-      wall1,
-    ],
-    [
-      wall1,
-      wall1,
-      wall1,
-      null,
-      wall1,
-      null,
-      wall1,
-      null,
-      wall1,
-      null,
-      wall1,
-      wall1,
-      wall1,
-      null,
-      wall1,
-    ],
-    [
-      wall1,
-      null,
-      null,
-      null,
-      wall1,
-      null,
-      null,
-      null,
-      null,
-      null,
-      null,
-      RGBA.yellow(),
-      wall1,
-      null,
-      wall1,
-    ],
-    [
-      wall1,
-      null,
-      wall1,
-      wall1,
-      wall1,
-      wall1,
-      wall1,
-      wall1,
-      wall1,
-      wall1,
-      wall1,
-      wall1,
-      wall1,
-      null,
-      wall1,
-    ],
-    [
-      wall1,
-      null,
-      null,
-      null,
-      null,
-      null,
-      null,
-      RGBA.green(),
-      null,
-      null,
-      null,
-      null,
-      null,
-      null,
-      wall1,
-    ],
-    [
-      wall1,
-      wall1,
-      wall1,
-      wall1,
-      wall1,
-      wall1,
-      wall1,
-      wall1,
-      wall1,
-      wall1,
-      wall1,
-      wall1,
-      wall1,
-      wall1,
-      wall1,
-    ],
-  ]);
+    wall1
+  );
   const player = new Player(new Vector2(3.5, 3.7), Math.PI * 1.5);
 
   let movingForward = false;
