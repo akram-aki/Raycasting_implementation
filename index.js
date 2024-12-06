@@ -1,7 +1,7 @@
 // @ts-nocheck
 const eps = 1e-6;
 const PLAYER_SPEED = 3.1;
-const SCREEN_FACTOR = 30;
+const SCREEN_FACTOR = 10;
 const SCREEN_WIDTH = 16 * SCREEN_FACTOR;
 const SCREEN_HEIGHT = 9 * SCREEN_FACTOR;
 const NEAR_CLIPPING_PLANE = 0.25;
@@ -60,6 +60,9 @@ class Vector2 {
   }
   lerp(vector, t) {
     return vector.sub(this).scale(t).add(this);
+  }
+  map(callback) {
+    return new Vector2(callback(this.x), callback(this.y));
   }
 }
 
@@ -149,7 +152,6 @@ class Scene {
     return c !== null && c !== undefined;
   }
   getFloor(p) {
-    if (!this.insideMap(p)) return undefined;
     return this.floor;
   }
 }
@@ -307,18 +309,20 @@ function renderFloor(ctx, player, map) {
   ctx.save();
   ctx.scale(ctx.canvas.width / SCREEN_WIDTH, ctx.canvas.height / SCREEN_HEIGHT);
 
-  for (
-    let plane = NEAR_CLIPPING_PLANE;
-    plane <= FAR_CLIPPING_PLANE;
-    plane += 0.5
-  ) {
-    const [p, p1, p2] = player.getFov(plane);
-    for (let dx = 0; dx < SCREEN_WIDTH; dx += 1) {
-      const pp = p1.lerp(p2, dx / SCREEN_WIDTH);
-      map.getFloor(pp);
-    }
+  const px = player.position.x;
+  const py = player.position.y;
+  const pz = SCREEN_HEIGHT / 2;
+  const [pp, p1, p2] = player.getFov(FAR_CLIPPING_PLANE);
+
+  for (let z = SCREEN_HEIGHT / 2 + 1; z < SCREEN_HEIGHT; z++) {
+    const sx = p1.x;
+    const sy = p1.y;
+    const sz = SCREEN_HEIGHT - 1 - z;
+    const ap = pz - sz;
+    const bp = p1.sub(player.position).length();
+    const b = (bp / ap) * pz;
   }
-  ctx.restre();
+  ctx.restore();
 }
 function minimap(ctx, player, minimapPosition, minimapSize, map) {
   ctx.save();
@@ -366,7 +370,7 @@ function renderGame(ctx, player, map) {
   ctx.fillStyle = "hsla(0,100%,9%,1)";
   ctx.fillRect(0, 0, ctx.canvas.width, ctx.canvas.height * 0.5);
   ctx.fillStyle = "#303030";
-  // renderFloor(ctx, player, map);
+  renderFloor(ctx, player, map);
   renderWalls(ctx, player, map);
   minimap(ctx, player, minimapPosition, minimapSize, map);
 }
