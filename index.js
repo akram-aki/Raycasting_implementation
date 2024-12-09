@@ -307,6 +307,7 @@ function renderWalls(ctx, player, map) {
 }
 function renderFloor(ctx, player, map) {
   ctx.save();
+
   ctx.scale(ctx.canvas.width / SCREEN_WIDTH, ctx.canvas.height / SCREEN_HEIGHT);
 
   const px = player.position.x;
